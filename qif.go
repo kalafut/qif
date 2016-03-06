@@ -1,9 +1,7 @@
-package main
+package qif
 
 import (
 	"bufio"
-	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -11,35 +9,24 @@ import (
 )
 
 type Split struct {
-	category string
-	memo     string
-	amount   string
+	Category string
+	Memo     string
+	Amount   string
 }
 
 type Transaction struct {
-	date     time.Time
-	payee    string
-	checkNum string
-	cleared  string
-	splits   []*Split
+	Date     time.Time
+	Payee    string
+	CheckNum string
+	Cleared  string
+	Splits   []*Split
 }
 
 func NewTransaction() Transaction {
-	return Transaction{splits: []*Split{}}
+	return Transaction{Splits: []*Split{}}
 }
 
-func main() {
-	flag.Parse()
-	filename := flag.Arg(0)
-	account := flag.Arg(1)
-
-	transactions := parse(filename)
-	export(transactions, "Test Account")
-
-	_ = account
-}
-
-func parse(filename string) []Transaction {
+func Parse(filename string) []Transaction {
 	transactions := []Transaction{}
 
 	f, err := os.Open(filename)
@@ -52,7 +39,7 @@ func parse(filename string) []Transaction {
 
 	tx := NewTransaction()
 	split := new(Split)
-	tx.splits = append(tx.splits, split)
+	tx.Splits = append(tx.Splits, split)
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -70,41 +57,41 @@ func parse(filename string) []Transaction {
 				log.Fatal(err)
 			}
 
-			tx.date = t
+			tx.Date = t
 		case '^':
 			// If there are splits, we also end up picking up the
 			// overall total, which we don't want.
-			if len(tx.splits) > 1 {
-				tx.splits = tx.splits[1:]
+			if len(tx.Splits) > 1 {
+				tx.Splits = tx.Splits[1:]
 			}
 			transactions = append(transactions, tx)
 
 			tx = NewTransaction()
 			split = new(Split)
-			tx.splits = append(tx.splits, split)
+			tx.Splits = append(tx.Splits, split)
 		case 'P':
-			tx.payee = data
+			tx.Payee = data
 			if strings.HasPrefix(data, "Transfer :") {
-				split.category = data[11:]
+				split.Category = data[11:]
 			}
 
 		case 'E':
 			fallthrough
 		case 'M':
-			split.memo = data
+			split.Memo = data
 
 		case '$':
 			fallthrough
 		case 'T':
-			split.amount = data
+			split.Amount = data
 
 		case 'L':
-			split.category = data
+			split.Category = data
 		case 'S':
 			split = new(Split)
-			tx.splits = append(tx.splits, split)
+			tx.Splits = append(tx.Splits, split)
 
-			split.category = data
+			split.Category = data
 		default:
 			break
 
@@ -112,17 +99,4 @@ func parse(filename string) []Transaction {
 	}
 
 	return transactions
-}
-
-func export(txs []Transaction, acct string) {
-	for _, tx := range txs {
-		//fmt.Println(tx.splits[0])
-		fmt.Printf("%s   %s\n", tx.date.Format("2006/01/02"), tx.payee)
-		for _, s := range tx.splits {
-			fmt.Printf("   %-40s  $%s\n", s.category, s.amount)
-		}
-		fmt.Printf("   %s\n", acct)
-		fmt.Println()
-
-	}
 }
